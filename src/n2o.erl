@@ -41,7 +41,8 @@ on_client_connected(ConnAck, Client = #mqtt_client{client_id = ClientId, ws_init
     io:format("client ~s connected, connack: ~w\r~n", [ClientId, {ConnAck, Env}]),
     % 1. retrive from kvs subscription list (friends, rooms)
     % 2. perform MQTT subscription on this list + user/:name/events
-
+    Cx = #cx{session=ClientId,req=self(),formatter=bert,params=[]},
+    put(context,Cx),
 %%    io:format("Headers: ~p~n", [Header]),
     emqttd:subscribe(<<"+/events">>, ClientId),
     {ok, Client}.
@@ -105,7 +106,15 @@ on_message_publish(Message = #mqtt_message{topic = <<"$SYS/", _/binary>>}, _) ->
     {ok, Message};
 
 on_message_publish(Message = #mqtt_message{topic = Topic, from=From, payload = Payload}, _Env) ->
-    {ok, Message}.
+  Cx = get(context),
+  case Cx of undefined -> ClientId = 0,  io:format("PID: ~p\r~n",[{self(),ClientId, From}]) ;
+    _ -> ClientId = Cx#cx.session  end,
+  case From of
+       ClientId -> io:format("UNKOWN INCOME: ~p\r~n",[{self(),ClientId, From}]),
+                  stop;
+        unbound -> stop;
+             _ -> {ok, Message}
+    end. %   {ok, Message}.
 
 n2o_proto(Res,ClientId,Topic) ->
     Cx = n2o:cache(ClientId),
@@ -120,7 +129,7 @@ n2o_proto(Res,ClientId,Topic) ->
 %%             Msg = emqttd_message:make(ClientId, 2, Topic, M),
               Msg = emqttd_message:make(ClientId, 2, ActionTopic, M),
               emqttd:publish(Msg), % nynja://root/user/:name/actions
-              {ok, emqttd_message:make(ClientId, 0, ActionTopic, M)};
+              {ok, Msg}; %emqttd_message:make(ClientId, 0, ActionTopic, M)};
          W ->
               io:format("UNKOWN OUTCOME: ~p\r~n",[W]),
               {ok, emqttd_message:make(ClientId, 0, Topic, <<>>)}

@@ -29,7 +29,7 @@ var ws = {
     send: function (payload) {
         var message = new Paho.MQTT.Message(payload);
         message.destinationName = event_topic; // nynja://root/user/:name/events
-        message.qos = 2;
+        message.qos = 1;
         mqtt.send(message);
     }
 };
@@ -41,7 +41,7 @@ function MQTT_start() {
             m.payloadBytes.byteOffset + m.payloadBytes.length);
         try {
             erlang = dec(BERT);
-            console.log(erlang);
+            console.log(m.destinationName);//console.log(erlang);
             for (var i = 0; i < $bert.protos.length; i++) {
                 p = $bert.protos[i]; if (p.on(erlang, p.do).status == "ok") return;
             }
